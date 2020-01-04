@@ -1,0 +1,1863 @@
+function GRAS
+%   This function creates a ufigure with multiple Tabs.
+%   The number of tabs can be changed and they are distributed evenly
+%   across the top of the figure.  Content is provided for the first 5 tabs
+%   to demo the program.  The demo uses the screen size to adjust the size
+%   of the figure.  The program uses the ~ character for unused arguments,
+%   so if you are not using 2009b, these should be changed to dummy
+%   arguments (lines 209 and 233). guidata is set to the TabHandles cell
+%   array and is used to pass all arguments and data to the functions.
+
+%%   Set up some varables
+%   First clear everything
+        clear all
+        clc
+%   Close existing figures.        
+    close(findobj('type','figure','name','Gras Workspace Pro'));   
+%   Set Number of tabs and tab labels.  Make sure the number of tab labels
+%   match the HumberOfTabs setting.
+        NumberOfTabs = 4;               % Number of tabs to be generated
+        TabLabels = {'DFA Data Entry'; 'DFA Tables'; 'Gras Workspace'; 'Gras Info'};
+        if size(TabLabels,1) ~= NumberOfTabs
+            errordlg('Number of tabs and tab labels must be the same','Setup Error');
+            return
+        end
+        
+%   Get user screen size
+        SC = get(0, 'ScreenSize')
+        MaxMonitorX = SC(3);
+        MaxMonitorY = SC(4);
+        
+ %   Set the figure window size values
+        MainFigScale = 0.7;          % Change this value to adjust the figure size
+        MaxWindowX = round(MaxMonitorX*MainFigScale);
+        MaxWindowY = round(MaxMonitorY*MainFigScale);
+        XBorder = (MaxMonitorX-MaxWindowX);
+        YBorder = (MaxMonitorY-MaxWindowY); 
+        TabOffset = 0;              % This value offsets the tabs inside the figure.
+        ButtonHeight = 40;
+        PanelWidth = MaxWindowX-2*TabOffset+4;
+        PanelHeight = MaxWindowY-ButtonHeight-2*TabOffset;
+        ButtonWidth = round((PanelWidth-NumberOfTabs)/NumberOfTabs);
+        
+        a = 1 ;
+        DFAOutCell = 1;
+        DFARat = [];
+        n = zeros(21);
+        p = zeros(21);
+        cellp = {};
+        PCount = 1; 
+        p(1,1)=1;
+        n(1,1)=1; 
+        cellp(1,1) = {1};
+        input = [];
+        rows = [];
+        
+        DFAIndex={'Part Number','Placing and Feeding','Process and Direction','Number of Insertions',...
+             'Acess and Vision', 'Alignment','Insertion Force','Size and Weight','Orientation',...
+             'Handling Difficluties','Rotational Orientation', 'Shape Factor','Geometric Features',...
+             'Material','Primary Process','Essential Part','Volume','Quantity','Limmitign Section',...
+             'Tolerance','Planes'};
+
+                
+ %   Set the color varables.  
+        White = [1  1  1];            % White - Selected tab color     
+        BGColor = .9*White;           % Light Grey - Background color
+            
+%%   Create a figure for the tabs
+        fig_handle = figure(...
+            'Units', 'pixels',...
+            'Toolbar', 'none',...
+            'Position',[ XBorder, YBorder, MaxWindowX, MaxWindowY ],...
+            'NumberTitle', 'off',...
+            'Name', 'Gras Workspace Pro',...
+            'MenuBar', 'none',...
+            'Resize', 'off',...
+            'DockControls', 'off',...
+            'Color', White);
+             
+    
+%%   Define a cell array for panel and pushbutton handles, pushbuttons labels and other data
+    %   rows are for each tab + two additional rows for other data
+    %   columns are uipanel handles, selection pushbutton handles, and tab label strings - 3 columns.
+            TabHandles = cell(NumberOfTabs,3);
+            TabHandles(:,3) = TabLabels(:,1);
+    %   Add additional rows for other data
+            TabHandles{NumberOfTabs+1,1} = fig_handle;         % Main figure handle
+            TabHandles{NumberOfTabs+1,2} = PanelWidth;      % Width of tab panel
+            TabHandles{NumberOfTabs+1,3} = PanelHeight;     % Height of tab panel
+            TabHandles{NumberOfTabs+2,1} = 0;               % Handle to default tab 2 content(set later)
+            TabHandles{NumberOfTabs+2,2} = White;           % Selected tab Color
+            TabHandles{NumberOfTabs+2,3} = BGColor;         % Background color
+            
+%%   Build the Tabs
+        for TabNumber = 1:NumberOfTabs
+        % create a UIPanel   
+            TabHandles{TabNumber,1} = uipanel('Units', 'pixels', ...
+                'Visible', 'off', ...
+                'Backgroundcolor', White, ...
+                'BorderWidth',1, ...
+                'Title', TabNumber,...
+                'Position', [TabOffset TabOffset ...
+                PanelWidth PanelHeight]);
+
+        % create a selection pushbutton
+            TabHandles{TabNumber,2} = uicontrol('Style', 'pushbutton',...
+                'Units', 'pixels', ...
+                'BackgroundColor', BGColor, ...
+                'Position', [TabOffset+(TabNumber-1)*ButtonWidth PanelHeight+TabOffset...
+                    ButtonWidth ButtonHeight], ...          
+                'String', TabHandles{TabNumber,3},...
+                'HorizontalAlignment', 'center',...
+                'FontName', 'arial',...
+                'FontWeight', 'bold',...
+                'FontSize', 10);
+
+        end
+
+%%   Define the callbacks for the Tab Buttons
+%   All callbacks go to the same function with the additional argument being the Tab number
+        for CountTabs = 1:NumberOfTabs
+            set(TabHandles{CountTabs,2}, 'callback', ...
+                {@TabSellectCallback, CountTabs});
+        end
+
+%%   Define content for Data Entry
+            
+ %      Listboxes
+                
+                 
+        handles.PlaFee = uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','listbox',...
+            'String',{'Self holding orientation','Requires holding','Self-securing','Screwing','Riveting','Bending'},...
+            'units','normalized',...
+            'Position', [.05 .8 .2 .09],...
+            'Tag','Plafee',...
+            'Callback', (@PlaFee_Callback));
+        
+           
+            
+            
+        handles.ProDir = uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','listbox',...
+            'String',{'Straight line from above','Straight line not from above','Not straight line'},...
+            'units','normalized',...
+            'Position', [.05 handles.PlaFee.Position(2)-0.032-0.05 .2 .032],...
+            'Callback', @PlaFee_Callback);
+           
+        handles.Inser = uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','listbox',...
+            'String',{'Single','Multiple insertions'},...
+            'units','normalized',...
+            'Position', [.05 handles.ProDir.Position(2)-0.032-0.05 .2 .032],...
+            'Callback', @Inser_Callback);  
+            
+        handles.AceVis = uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','listbox',...
+            'String',{'Direct','Restricted'},...
+            'units','normalized',...
+            'Position', [.05 handles.Inser.Position(2)-0.032-0.05 .2 .032],...
+            'Callback', @AceVis_Callback);  
+            
+        handles.Alig = uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','listbox',...
+            'String',{'Easy to align','Not easy'},...
+            'units','normalized',...
+            'Position', [.05 handles.AceVis.Position(2)-0.032-0.05 .2 .032],...
+            'Callback', @Alig_Callback);  
+            
+        handles.InsForc = uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','listbox',...
+            'String',{'No resistance','Resistance'},...
+            'units','normalized',...
+            'Position', [.05 handles.Alig.Position(2)-0.032-0.05 .2 .032],...
+            'Callback', @InsForc_Callback); 
+        
+%       LB Feeding
+
+        handles.SizWei = uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','listbox',...
+            'String',{'Very small - tools','Convenient - hands','Large/heavy - handS','Heavy - hoist'},...
+            'units','normalized',...
+            'Position', [.4 .826 .2 .064],...
+            'Tag','Plafee',...
+            'Callback', (@SizWei_Callback));
+            
+            
+        handles.Orient = uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','listbox',...
+            'String',{'Symetical','end to end - easy','End to end - hard'},...
+            'units','normalized',...
+            'Position', [handles.SizWei.Position(1) handles.SizWei.Position(2)-0.048-0.05 .2 .048],...
+            'Tag','Plafee',...
+            'Callback', (@Orient_Callback)); 
+         
+            
+        handles.HanDif = uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','listbox',...
+            'String',{'Delicate','Flexible','Sticky','Severely Nest','Sharp/Abraisive','Untouchable','Gripping problem','No difficulties'},...
+            'units','normalized',...
+            'Position', [handles.SizWei.Position(1) handles.Orient.Position(2)-0.12-0.05 .2 .12],...
+            'Tag','Plafee',...
+            'Callback', (@HanDif_Callback));
+            
+        handles.RotOri= uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','listbox',...
+            'String',{'Rotational Symetry','Rotational - easy','Rotational - hard'},...
+            'units','normalized',...
+            'Position', [handles.SizWei.Position(1) handles.HanDif.Position(2)-0.048-0.05 .2 .048],...
+            'Tag','Plafee',...
+            'Callback', (@RotOri_Callback)); 
+            
+        handles.Esse= uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','listbox',...
+            'String',{'Essential','non-essential'},...
+            'units','normalized',...
+            'Position', [handles.SizWei.Position(1) handles.RotOri.Position(2)-0.032-0.05 .2 .032],...
+            'Tag','Plafee',...
+            'Callback', (@Esse_Callback)); 
+            
+%       LB Cost Index
+
+        handles.ShapFac= uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','listbox',...
+            'String',{'Cylindrical','Prismatic','Thin-walled'},...
+            'units','normalized',...
+            'Position', [.75 .842 .2 .048],...
+            'Tag','Plafee',...
+            'Callback', (@ShapFac_Callback));
+
+        handles.GeoFeat= uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','listbox',...
+            'String',{'Select Shape'},...
+            'units','normalized',...
+            'Position', [handles.ShapFac.Position(1) handles.ShapFac.Position(2)-0.08-0.05 .2 .08],...
+            'Tag','Plafee',...
+            'Callback', (@GeoFeat_Callback));
+
+        handles.Mat= uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','listbox',...
+            'String',{'Cast iron','Low-C Steel','Alloy Steel','Stainless Steel','Copper Alloys','Aluminium Alloys','Zinc Alloys','Thermoplastic','Thermoset','Elastomer','Other'},...
+            'units','normalized',...
+            'Position', [handles.ShapFac.Position(1) handles.GeoFeat.Position(2)-0.162-0.05 .2 .162],...
+            'Tag','Plafee',...
+            'Callback', (@Mat_Callback));
+            
+            
+       handles.PrimPro= uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','listbox',...
+            'String',{'Impact ext.','Snd Cast','Die Cast','Forge','Press','Machine','Powder Net','Plastic Mould'},...
+            'units','normalized',...
+            'Position', [handles.ShapFac.Position(1) handles.Mat.Position(2)-0.112-0.05 .2 .112],...
+            'Tag','Plafee',...
+            'Callback', (@PrimPro_Callback));
+
+%      Edit Text
+
+       handles.NamePartEdit = uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','edit',...
+            'String',' ',...
+            'units','normalized',...
+            'Position', [.5 .95 .1 .02],...
+            'Callback', @NamePartEdit_Callback);
+
+       handles.NumPartEdit = uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','edit',...
+            'String','  ',...
+            'units','normalized',...
+            'Position', [.15 .95 .05 .02],...
+            'Callback', @NumPartEdit_Callback);
+
+            
+       handles.VolEdit = uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','edit',...
+            'String','m3',...
+            'units','normalized',...
+            'Position', [handles.ShapFac.Position(1)+0.1 handles.PrimPro.Position(2)-0.02-0.03 .1 .02],...
+            'Callback', @VolEdit_Callback);
+            
+       handles.QuantEdit = uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','edit',...
+            'String','Units/Anum ',...
+            'units','normalized',...
+            'Position', [handles.ShapFac.Position(1)+0.1 handles.VolEdit.Position(2)-0.02-0.03 .1 .02],...
+            'Callback', @QuantEdit_Callback);            
+            
+            
+       handles.LimSecEdit = uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','edit',...
+            'String','mm',...
+            'units','normalized',...
+            'Position', [handles.ShapFac.Position(1)+0.1 handles.QuantEdit.Position(2)-0.02-0.03 .1 .02],...
+            'Callback', @limSecEdit_Callback);            
+            
+            
+       handles.TolEdit = uicontrol('Parent', TabHandles{1,1}, ...
+            'Style','edit',...
+            'String','mm',...
+            'units','normalized',...
+            'Position', [handles.ShapFac.Position(1)+0.1 handles.LimSecEdit.Position(2)-0.02-0.03 .1 .02],...
+            'Callback', @TolEdit_Callback);
+            
+            
+       handles.PlanEdit = uicontrol('Parent', TabHandles{1,1},...
+            'Style','edit',...
+            'String',' ',...
+            'units','normalized',...
+            'Position', [handles.ShapFac.Position(1)+0.1 handles.LimSecEdit.Position(2)-0.02-0.03 .1 .02],...
+            'Callback', @PlanEdit_Callback);
+ 
+%      Titles
+%      Misc
+
+       handles.Partdisp = uicontrol('Parent', TabHandles{1,1}, ...
+                'Style','text',...
+                'String','Editing Part 1 of...',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[.78 handles.NumPartEdit.Position(2) 0.1 .02]); 
+            
+            
+       NumPartStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Number of Parts',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.NumPartEdit.Position(1)-0.1 handles.NumPartEdit.Position(2) 0.1 .02]); 
+            
+       NamePartStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Part Name',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.NamePartEdit.Position(1)-0.1 handles.NamePartEdit.Position(2) 0.1 .02]);
+            
+           
+            
+%      Titles
+%      Fitting
+       PlaFeeStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Placing and Feeding',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.PlaFee.Position(1) handles.PlaFee.Position(2)+handles.PlaFee.Position(4) 0.2 .02]); 
+            
+            
+       HanDifStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Handling Difficulties',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.HanDif.Position(1) handles.HanDif.Position(2)+handles.HanDif.Position(4) 0.2 .02]); 
+                
+       ProDirStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Process and Direction',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.ProDir.Position(1) handles.ProDir.Position(2)+handles.ProDir.Position(4) 0.2 .02]);             
+
+                  
+       InserStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Insertion',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.Inser.Position(1) handles.Inser.Position(2)+handles.Inser.Position(4) 0.2 .02]); 
+
+       AceVisStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Acess and Vision',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.AceVis.Position(1) handles.AceVis.Position(2)+handles.AceVis.Position(4) 0.2 .02]); 
+
+       AligStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Alignment',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.Alig.Position(1) handles.Alig.Position(2)+handles.Alig.Position(4) 0.2 .02]); 
+            
+       InsForcStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Insertion Force',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.InsForc.Position(1) handles.InsForc.Position(2)+handles.InsForc.Position(4) 0.2 .02]);             
+
+%      Titles
+%      Feeding
+
+       SizWeiStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Size & Weight',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.SizWei.Position(1) handles.SizWei.Position(2)+handles.SizWei.Position(4) 0.2 .02]); 
+            
+       OrientStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Orientation of Part',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.Orient.Position(1) handles.Orient.Position(2)+handles.Orient.Position(4) 0.2 .02]); 
+            
+       HanDifStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Handling Difficulties',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[20 310 270 50]);  
+
+       RotOriStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Rotaitional Orientation',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.RotOri.Position(1) handles.RotOri.Position(2)+handles.RotOri.Position(4) 0.2 .02]); 
+            
+            
+            
+       Esse = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Essential Part',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.Esse.Position(1) handles.Esse.Position(2)+handles.Esse.Position(4) 0.2 .02]);  
+            
+%      Titles
+%      Cost 
+
+       ShapFacStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Shape',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.ShapFac.Position(1) handles.ShapFac.Position(2)+handles.ShapFac.Position(4) .2 .02]); 
+            
+       GeoFeatStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Geometic Features',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.GeoFeat.Position(1) handles.GeoFeat.Position(2)+handles.GeoFeat.Position(4) .2 .02]);            
+            
+       MatStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Material',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.Mat.Position(1) handles.Mat.Position(2)+handles.Mat.Position(4) .2 .02]);
+            
+       PrimProStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Primary Process',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.PrimPro.Position(1) handles.PrimPro.Position(2)+handles.PrimPro.Position(4) .2 .02]);            
+            
+       VolStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Volume',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.VolEdit.Position(1)-0.1 handles.VolEdit.Position(2) .1 .02]);
+            
+       QuantStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Quantiy per Anum',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.QuantEdit.Position(1)-0.1 handles.QuantEdit.Position(2) .1 .02]);            
+            
+       LimSecStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Limmiting Section',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.LimSecEdit.Position(1)-0.1 handles.LimSecEdit.Position(2) .1 .02]);            
+            
+       TolStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Tolerance Information',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.TolEdit.Position(1)-0.1 handles.TolEdit.Position(2) .1 .02]);
+
+       PlanStat = uicontrol('Parent', TabHandles{1,1},...
+                'Style','text',...
+                'String','Tolerance Planes',...
+                'units','normalized',...
+                'backgroundcolor',get(gcf,'color'),...
+                'Position',[handles.PlanEdit.Position(1)-0.1 handles.PlanEdit.Position(2) .1 .02]);
+           
+%     Buttons 
+
+      NexPart = uicontrol('Parent', TabHandles{1,1},...
+                'Style','pushbutton','String','Next Part',...
+                'units','normalized',...
+                'Position',[.8 .05 .1 .05],...
+                'Callback', @NexPart_Callback);
+            
+                
+                
+      PrePart = uicontrol('Parent', TabHandles{1,1},...
+                'Style','pushbutton','String','Previous Part',...
+                'units','normalized',...
+                'Position',[.05 NexPart.Position(2) .1 .05],...
+                'Visible', 'on',...
+                'Enable', 'off',...
+                'Callback', @PrePart_Callback);
+
+      SavePartBut = uicontrol('Parent', TabHandles{1,1},...
+                'Style','pushbutton','String','Save Parts',...
+                'units','normalized',...
+                'Position',[.05+0.1 NexPart.Position(2) .1 .05],...
+                'Visible', 'on',...
+                'Enable', 'on',...
+                'Callback', @SavePartBut_Callback); 
+            
+            
+            
+      ResetPartsBut = uicontrol('Parent', TabHandles{1,1},...
+                'Style','pushbutton','String','Reset Parts',...
+                'units','normalized',... 
+                'Position',[.05+0.2 NexPart.Position(2) .1 .05],...
+                'Visible', 'on',...
+                'Enable', 'on',...
+                'Callback', @ResetPartsBut_Callback); 
+            
+      UpdateDataBut = uicontrol('Parent', TabHandles{2,1},...
+                'Style','pushbutton','String','UpdateData',...
+                'units','normalized',... 
+                'Position',[.5 .1 .1 .05],...
+                'Callback', @UpdateData_Callback);
+            
+ 
+            
+              
+    
+%%   Define content for DFA Tables
+    
+	   
+%%   Define content for GRAS Workspace
+  
+
+        
+%%   Define Tab 4 content
+   
+
+
+
+
+
+%%   Save the TabHandles in guidata
+        guidata(fig_handle,TabHandles);
+        
+
+%%   Make Tab 1 active
+        TabSellectCallback(0,0,1);
+%%   Listbox Callbacks 
+function PlaFee_Callback(~, ~)
+       %pos = get(dataentryGUI, 'currentpoint')
+       disp(handles)
+       h = handles.PlaFee.Value;
+       str = handles.PlaFee.String;
+            if h==1 
+            p(PCount,2)=1;
+            cellp{PCount,3}=str{1,1};
+            n(PCount,2)=1;
+            elseif h==2
+            p(PCount,2)=2;
+            cellp{PCount,3}=str{2,1};
+            n(PCount,2)=2;
+            elseif h==3
+            p(PCount,2)=1.3;
+            cellp{PCount,3}=str{3,1};
+            n(PCount,2)=3;
+            elseif h==4
+            p(PCount,2)=4;
+            cellp{PCount,3}=str{4,1}; 
+            elseif h==5
+            p(PCount,2)=4;
+            cellp{PCount,3}=str{5,1};
+            n(PCount,2)=5;
+            elseif h==6
+            p(PCount,2)=4;
+            cellp{PCount,3}=str{6,1};
+            n(PCount,2)=6; 
+            end
+            disp(p)
+            disp(cellp)
+end
+
+function ProDir_Callback(~, ~)
+     
+       h = handles.ProDir.Value;
+       str = handles.ProDir.String;
+            if h==1 ;
+            p(PCount,3)=0;
+            cellp{PCount,4}=str{1,1};
+            n(PCount,3)=1;
+            elseif h==2
+            p(PCount,3)=0.1;
+            cellp{PCount,4}=str{2,1};
+            n(PCount,3)=2;
+            elseif h==3
+            p(PCount,3)=1.6;
+            cellp{PCount,4}=str{3,1};
+            n(PCount,3)=3; 
+            end
+end
+
+function Inser_Callback(~, ~)
+     
+       h = handles.Inser.Value;
+       str = handles.Inser.String;
+            if h==1 ;
+            p(PCount,4)=0;
+            cellp{PCount,5}=str{1,1};
+            n(PCount,4)=1;
+            elseif h==2
+            p(PCount,4)=0.7;
+            cellp{PCount,5}=str{2,1};
+            n(PCount,4)=2;
+            end
+end
+
+function AceVis_Callback(~, ~)
+     
+       h = handles.AceVis.Value;
+       str = handles.AceVis.String;
+            if h==1 ;
+            p(PCount,5)=0;
+            cellp{PCount,6}=str{1,1};
+            n(PCount,5)=1;
+            elseif h==2
+            p(PCount,5)=1.5;
+            cellp{PCount,6}=str{2,1};
+            n(PCount,5)=2;
+            disp(p)
+            end
+end
+
+function Alig_Callback(~, ~)
+     
+       h = handles.Alig.Value;
+       str = handles.Alig.String;
+            if h==1 ;
+            p(PCount,6);
+            cellp{PCount,7}=str{1,1};
+            n(PCount,6)=1;
+            elseif h==2
+            p(PCount,6)=0.7;
+            cellp{PCount,7}=str{2,1};
+            n(PCount,6)=2;
+            disp(p)
+            end
+end
+
+function InsForc_Callback(~, ~)
+     
+       h = handles.InsForc.Value;
+       str = handles.InsForc.String;
+            if h==1 ;
+            p(PCount,7)=0;
+            cellp{PCount,8}=str{1,1};
+            n(PCount,7)=1;
+            elseif h==2
+            p(PCount,7)=0.6;
+            cellp{PCount,8}=str{2,1};
+            n(PCount,7)=2;
+            disp(p)
+            end
+end
+
+% CB Feed Listboxes
+
+function SizWei_Callback(~, ~)
+     
+       h = handles.SizWei.Value;
+       str = handles.SizWei.String;
+            if h==1 ;
+            p(PCount,8)=1.5;
+            cellp{PCount,9}=str{1,1};
+            n(PCount,8)=1;
+            elseif h==2
+            p(PCount,8)=1;
+            cellp{PCount,9}=str{2,1};
+            n(PCount,8)=2;
+            elseif h==3
+            p(PCount,8)=1.5;
+            cellp{PCount,9}=str{3,1};
+            n(PCount,8)=3;
+            elseif h==4
+            p(PCount,8)=3;
+            cellp{PCount,9}=str{4,1};
+            n(PCount,8)=4;
+            disp(p)
+            end
+            
+end         
+            
+            
+function Orient_Callback(~, ~)
+       h = handles.Orient.Value;
+       str = handles.Orient.String;
+            if h==1 ;
+            p(PCount,9)=1.5;
+            cellp{PCount,10}=str{1,1};
+            n(PCount,9)=1;
+            elseif h==2
+            p(PCount,9)=1;
+            cellp{PCount,10}=str{2,1};
+            n(PCount,9)=2;
+            elseif h==3
+            p(PCount,9)=1.5;
+            cellp{PCount,10}=str{3,1};
+            n(PCount,9)=3;
+            elseif h==4
+            p(PCount,9)=3;
+            cellp{PCount,10}=str{4,1};
+            n(PCount,9)=4;
+            disp(p)
+            end
+
+end
+
+function HanDif_Callback(~, ~)
+     
+       h = handles.HanDif.Value;
+       str = handles.HanDif.String;
+            if h==1 ;
+            p(PCount,10)=0.4;
+            cellp{PCount,11}=str{1,1};
+            n(PCount,10)=1;
+            elseif h==2
+            p(PCount,10)=0.6;
+            cellp{PCount,11}=str{2,1};
+            n(PCount,10)=2;
+            elseif h==3
+            p(PCount,10)=0.5;
+            cellp{PCount,11}=str{3,1};
+            n(PCount,10)=3;
+            elseif h==4
+            p(PCount,10)=0.8;
+            cellp{PCount,11}=str{4,1};
+            n(PCount,10)=4;
+            elseif h==5
+            p(PCount,10)=0.7;
+            cellp{PCount,11}=str{5,1};
+            n(PCount,10)=5;
+            elseif h==6
+            p(PCount,10)=0.3;
+            cellp{PCount,11}=str{6,1};
+            n(PCount,11)=6;
+            elseif h==7
+            p(PCount,10)=0.5;
+            cellp{PCount,11}=str{7,1};
+            n(PCount,10)=7;
+            elseif h==8
+            p(PCount,10)=0.2;
+            cellp{PCount,11}=str{8,1};
+            n(PCount,10)=8;
+            elseif h==9
+            p(PCount,10)=0;
+            cellp{PCount,11}=str{9,1};
+            n(PCount,10)=9;
+            disp(p)
+            disp(n)
+            end
+
+end
+
+function RotOri_Callback(~, ~)
+     
+       h = handles.RotOri.Value;
+       str = handles.RotOri.String;
+            if h==1 ;
+            p(PCount,11)=0;
+            cellp{PCount,12}=str{1,1};
+            n(PCount,11)=1;
+            elseif h==2
+            p(PCount,11)=0.2;
+            cellp{PCount,12}=str{2,1};
+            n(PCount,11)=2;
+            elseif h==3
+            p(PCount,11)=0.4;
+            cellp{PCount,12}=str{3,1};
+            n(PCount,11)=3;
+            
+            end
+
+end
+
+
+
+% CB Cost Listbox
+
+function ShapFac_Callback(~, ~)
+A = cell(1,5);  
+A{1,1} = 'A1 - Basic';                                                           
+A{1,2}= 'A2 - Regular';  
+A{1,3}= 'A3 - Internal';
+A{1,4}= 'A4 - Internal and External';
+A{1,5}= 'A5 - Irregular and Complex';
+cyl = sprintf('%s\n%s\n%s\n%s\n%s',A{1,1},A{1,2},A{1,3},A{1,4},A{1,5});
+B{1,1} = 'B1 - Basic';                                                           
+B{1,2}= 'B2 - Regular';  
+B{1,3}= 'B3 - Orthogonal or Straight';
+B{1,4}= 'B4 - Simple Curved';
+B{1,5}= 'B5 - Irregular aor Countoured'; 
+pri = sprintf('%s\n%s\n%s\n%s\n%s',B{1,1},B{1,2},B{1,3},B{1,4},B{1,5});
+C{1,1} = 'C1 - Basic';                                                           
+C{1,2}= 'C2 - Uniform Thickness';  
+C{1,3}= 'C3 - Non-uniform section';
+C{1,4}= 'C4 - Cup/Cone/Box';
+C{1,5}= 'C5 - non-uniform Countoured'; 
+fla = sprintf('%s\n%s\n%s\n%s\n%s',C{1,1},C{1,2},C{1,3},C{1,4},C{1,5});
+       h = handles.ShapFac.Value;
+       str = handles.ShapFac.String;
+            if h==1 ;
+            handles.GeoFeat.String = cyl; 
+            p(PCount,12)=1;
+            cellp{PCount,13}=str{1,1};
+            n(PCount,12)=1;
+            elseif h==2
+            handles.GeoFeat.String = pri;
+            p(PCount,12)=2;
+            cellp{PCount,13}=str{2,1};
+            n(PCount,12)=2;
+            elseif h==3
+            handles.GeoFeat.String = fla;
+            p(PCount,12)=3;
+            cellp{PCount,13}=str{3,1};
+            n(PCount,12)=3;
+            disp(p)
+            end
+
+end
+
+
+function GeoFeat_Callback(~, ~)
+       h = handles.GeoFeat.Value;
+       str = handles.GeoFeat.String;
+            if h==1 ;
+            p(PCount,13)=1;
+            cellp{PCount,14}=str(1,1);
+            n(PCount,13)=1;
+            elseif h==2
+            p(PCount,13)=2;
+            cellp{PCount,14}=str(2,1);
+            n(PCount,13)=2;
+            elseif h==3
+            p(PCount,13)=3;
+            cellp{PCount,14}=str(3,1);
+            n(PCount,13)=3;
+            elseif h==4
+            p(PCount,13)=4;
+            cellp{PCount,14}=str(4,1);
+            n(PCount,13)=4;
+            elseif h==5
+            p(PCount,13)=5;
+            cellp{PCount,14}=str(5,1);
+            n(PCount,13)=5; 
+            disp(p)
+            end
+
+end
+
+function Mat_Callback(~, ~)
+       h = handles.Mat.Value;
+       str = handles.Mat.String;
+            if h==1 ;
+            p(PCount,14)=1;
+            cellp{PCount,15}=str{1,1};
+            n(PCount,14)=1;
+            elseif h==2
+            p(PCount,14)=2;
+            cellp{PCount,15}=str{2,1};
+            n(PCount,14)=2;
+            elseif h==3
+            p(PCount,14)=3;
+            cellp{PCount,15}=str{3,1};
+            n(PCount,14)=3;
+            elseif h==4
+            p(PCount,14)=4;
+            cellp{PCount,15}=str{4,1};
+            n(PCount,14)=4;
+            elseif h==5
+            p(PCount,14)=5;
+            cellp{PCount,15}=str{5,1};
+            n(PCount,14)=5;
+            elseif h==6
+            p(PCount,14)=6;
+            cellp{PCount,15}=str{6,1};
+            n(PCount,14)=6;
+            elseif h==7
+            p(PCount,14)=7;
+            cellp{PCount,15}=str{7,1};
+            n(PCount,14)=7;
+            elseif h==8
+            p(PCount,14)=8;
+            cellp{PCount,15}=str{8,1};
+            n(PCount,14)=8;
+            elseif h==9
+            p(PCount,14)=9;
+            cellp{PCount,15}=str{9,1};
+            n(PCount,14)=9;
+            elseif h==10
+            p(PCount,14)=10;
+            cellp{PCount,15}=str{10,1};
+            n(PCount,14)=10;
+            elseif h==11
+            p(PCount,14)=11;
+            cellp{PCount,15}=str{11,1};
+            n(PCount,14)=11; 
+            disp(p)
+            end
+
+end
+
+function PrimPro_Callback(~, ~)
+       h = handles.PrimPro.Value;
+       str = handles.PrimPro.String;
+            if h==1 ;
+            p(PCount,15)=1;
+            cellp{PCount,16}=str{1,1};
+            n(PCount,15)=1;
+            elseif h==2
+            p(PCount,15)=2;
+            cellp{PCount,16}=str{2,1};
+            n(PCount,15)=2;
+            elseif h==3
+            p(PCount,15)=3;
+            cellp{PCount,16}=str{3,1};
+            n(PCount,15)=3;
+            elseif h==4
+            p(PCount,15)=4;
+            cellp{PCount,16}=str{4,1};
+            n(PCount,15)=4;
+            elseif h==5
+            p(PCount,15)=5;
+            cellp{PCount,16}=str{5,1};
+            n(PCount,15)=5;
+            elseif h==6
+            p(PCount,15)=6;
+            cellp{PCount,16}=str{6,1};
+            n(PCount,15)=6;
+            elseif h==7
+            p(PCount,15)=7;
+            cellp{PCount,16}=str{7,1};
+            n(PCount,15)=7;
+            elseif h==8
+            p(PCount,15)=8;
+            cellp{PCount,16}=str{8,1};
+            n(PCount,15)=8;
+            disp(p)
+            end
+
+end
+
+function Esse_Callback(~, ~)
+       h = handles.Esse.Value;
+       str = handles.Esse.String;
+            if h==1 ;
+            p(PCount,16)=1;
+            cellp{PCount,17}=str{1,1};
+            n(PCount,16)=1;
+            elseif h==2
+            p(PCount,16)=0;
+            cellp{PCount,17}=str{2,1};
+            n(PCount,16)=2;
+            disp(p)
+            end
+
+end
+
+
+% Edit Boxes 
+
+function NamePartEdit_Callback(~, ~)
+namestr = handles.NamePartEdit.String;
+cellp{PCount,2} = char(namestr);
+end
+
+
+function NumPartEdit_Callback(~, ~)
+input = handles.NumPartEdit.String;
+rows = str2double(input);
+
+s= num2str(PCount);
+          s1= 'Editing Part ';
+          s3= 'of';
+          s4= handles.NumPartEdit.String;
+          s5= ' ';
+          sn = sprintf ('%s %s',s1,s,s5,s3,s5,s4);
+          handles.Partdisp.String = sn;
+
+end
+
+
+function VolEdit_Callback(~, ~)
+v = handles.VolEdit.String;
+p(PCount,17) = str2double(v);
+n(PCount,17)= str2double(v);
+cellp(PCount,18)= cellstr(v);
+end
+
+function QuantEdit_Callback(~, ~)
+v = handles.QuantEdit.String;
+p(PCount,18) = str2double(v); 
+n(PCount,18)= str2double(v);
+cellp(PCount,19)= cellstr(v);
+end
+
+
+
+function limSecEdit_Callback(~, ~)
+v = handles.LimSecEdit.String;
+p(PCount,19) = str2double(v);
+n(PCount,19)= str2double(v);
+cellp(PCount,20)= cellstr(v);
+end
+
+function TolEdit_Callback(~, ~)
+v = handles.TolEdit.String;
+p(PCount,20) = str2double(v);
+n(PCount,20)= str2double(v);
+cellp(PCount,21)= cellstr(v);
+
+end
+
+
+function PlanEdit_Callback(~, ~)
+v = handles.PlanEdit.String;
+p(PCount,21) = str2double(v);
+n(PCount,21)= str2double(v);
+cellp(PCount,22)= cellstr(v);
+
+end
+
+%% Button Callbacks
+
+
+
+cellp = {};
+
+PCount=1;
+p(1,1)=1;
+n(1,1)=1; 
+cellp(1,1) = {1};
+
+
+if  PCount == 1;
+    set(PrePart,'Enable','off')
+elseif PCount >=2;
+    set(PrePart,'Enable','on')
+end 
+ 
+ function NexPart_Callback(~, ~)
+     max123 = max(n(:,1));
+     N = min(n(PCount,:));
+     
+      
+     
+     s= num2str(PCount);
+     s1= 'Editing Part ';
+     s3= 'of';
+     s4= num2str(max(str2double(input),max(n(:,1))));
+     s5= ' ';
+     sn = sprintf ('%s %s',s1,s,s5,s3,s5,s4);
+     handles.Partdisp.String = sn;
+     
+     
+     disp(n)
+     
+     
+     % use char instea of strvcat
+     erstr = strvcat('Please enter the following:','--------');
+     
+     for i = 2:21;
+         
+     if n(PCount,i) == 0  || n(PCount,i)== 0.5012;
+          n(PCount,i) = 0.5012;
+          error = char(DFAIndex(i));
+          erstr = strvcat(erstr,  error);
+          
+        else
+     end 
+     end
+     
+     if N == 0 || N == 0.5012;
+     h = errordlg(erstr);    
+    handles.NamePartEdit.String = cellp(PCount, 2);
+    handles.PlaFee.Value = round(n(PCount, 2));
+    handles.ProDir.Value = round(n(PCount, 3));
+    handles.Inser.Value = round(n(PCount, 4));
+    handles.AceVis.Value = round(n(PCount, 5));
+    handles.Alig.Value = round(n(PCount, 6));
+    handles.InsForc.Value = round(n(PCount, 7));
+    handles.SizWei.Value = round(n(PCount, 8));
+    handles.Orient.Value = round(n(PCount, 9));
+    handles.HanDif.Value = round(n(PCount, 10));
+    handles.RotOri.Value = round(n(PCount, 11));
+    handles.ShapFac.Value = round(n(PCount, 12));
+    handles.GeoFeat.Value = round(n(PCount, 13));
+    handles.Mat.Value = round(n(PCount, 14));
+    handles.PrimPro.Value = round(n(PCount, 15));
+    handles.Esse.Value = round(n(PCount, 16));
+    handles.VolEdit.String = cellp(PCount, 18);
+    handles.QuantEdit.String = cellp(PCount, 19);
+    handles.LimSecEdit.String = cellp(PCount, 20);
+    handles.TolEdit.String = cellp(PCount, 21);
+    handles.PlanEdit.String = cellp(PCount, 22);
+    handles.NamePartEdit.String = cellp(PCount, 2);
+    
+     elseif N ~= 0 && PCount == max123;
+     
+     
+    handles.NamePartEdit.String = '';
+    handles.PlaFee.Value = 1;
+    handles.ProDir.Value = 1;
+    handles.Inser.Value = 1;
+    handles.AceVis.Value = 1;
+    handles.Alig.Value = 1;
+    handles.InsForc.Value = 1;
+    handles.SizWei.Value = 1;
+    handles.Orient.Value = 1;
+    handles.HanDif.Value = 1;
+    handles.RotOri.Value = 1;
+    handles.ShapFac.Value = 1;
+    handles.GeoFeat.Value = 1;
+    handles.Mat.Value = 1;
+    handles.PrimPro.Value = 1;
+    handles.Esse.Value = 1;
+    handles.VolEdit.String = '';
+    handles.QuantEdit.String = '';
+    handles.LimSecEdit.String = '';
+    handles.TolEdit.String = '';
+    handles.PlanEdit.String = '';
+    handles.NamePartEdit.String = '';
+    
+    
+    PCount = PCount+1;
+    if  PCount == 1;
+     set(PrePart,'Enable','off')
+     elseif PCount >=2;
+     set(PrePart,'Enable','on')
+     end
+    
+     
+     s= num2str(PCount);
+     s1= 'Editing Part ';
+     s3= 'of';
+     s4= num2str(max(str2double(input),max(n(:,1))));
+     s5= ' ';
+     sn = sprintf ('%s %s',s1,s,s5,s3,s5,s4);
+     handles.Partdisp.String = sn;
+     
+     
+     elseif N ~= 0 && PCount ~= max123;
+         
+     PCount = PCount+1;  
+     
+     if  PCount == 1;
+     set(PrePart,'Enable','off')
+     elseif PCount >=2;
+     set(PrePart,'Enable','on')
+     end
+     
+    
+    handles.NamePartEdit.String = (cellp(PCount, 2));
+    handles.PlaFee.Value = round(n(PCount, 2));
+    handles.ProDir.Value = round(n(PCount, 3));
+    handles.Inser.Value = round(n(PCount, 4));
+    handles.AceVis.Value = round(n(PCount, 5));
+    handles.Alig.Value = round(n(PCount, 6));
+    handles.InsForc.Value = round(n(PCount, 7));
+    handles.SizWei.Value = round(n(PCount, 8));
+    handles.Orient.Value = round(n(PCount, 9));
+    handles.HanDif.Value = round(n(PCount, 10));
+    handles.RotOri.Value = round(n(PCount, 11));
+    handles.ShapFac.Value = round(n(PCount, 12));
+    handles.GeoFeat.Value = round(n(PCount, 13));
+    handles.Mat.Value = round(n(PCount, 14));
+    handles.PrimPro.Value = round(n(PCount, 15));
+    handles.Esse.Value = round(n(PCount, 16));
+    handles.VolEdit.String = cellp(PCount, 18);
+    handles.QuantEdit.String = cellp(PCount, 19);
+    handles.LimSecEdit.String = cellp(PCount, 20);
+    handles.TolEdit.String = cellp(PCount, 21);
+    handles.PlanEdit.String = cellp(PCount, 22);
+    handles.NamePartEdit.String = cellp(PCount, 2);
+         
+         
+         
+     
+     
+     
+     
+     end
+     
+     s= num2str(PCount);
+     s1= 'Editing Part ';
+     s3= 'of';
+     s4= num2str(max(str2double(input),max(n(:,1))));
+     s5=' ';
+     sn = sprintf ('%s %s',s1,s,s5,s3,s5,s4);
+     Partdisp.String = sn;
+    
+     
+    p(PCount,1)= PCount;
+    cellp(PCount,1) = {PCount};
+    n(PCount,1) = PCount;
+     
+    if  PCount == 1;
+     set(PrePart,'Enable','off')
+     elseif PCount >2;
+     set(PrePart,'Enable','on')
+     end 
+    
+    
+ end
+ 
+    
+ function PrePart_Callback(~, ~)
+     
+     PCount = PCount-1 ;
+     
+     s= num2str(PCount);
+     s1= 'Editing Part ';
+     s3= 'of';
+     s4= num2str(max(str2double(input),max(n(:,1))));
+     s5= ' ';
+     sn = sprintf ('%s %s',s1,s,s5,s3,s5,s4);
+     handles.Partdisp.String = sn;
+     
+     if  PCount == 1;
+     set(PrePart,'Enable','off')
+     elseif PCount >2;
+     set(PrePart,'Enable','on')
+     end 
+  
+     
+            
+            
+    handles.NamePartEdit.String = (cellp(PCount, 2));
+    handles.PlaFee.Value = round(n(PCount, 2));
+    handles.ProDir.Value = round(n(PCount, 3));
+    handles.Inser.Value = round(n(PCount, 4));
+    handles.AceVis.Value = round(n(PCount, 5));
+    handles.Alig.Value = round(n(PCount, 6));
+    handles.InsForc.Value = round(n(PCount, 7));
+    handles.SizWei.Value = round(n(PCount, 8));
+    handles.Orient.Value = round(n(PCount, 9));
+    handles.HanDif.Value = round(n(PCount, 10));
+    handles.RotOri.Value = round(n(PCount, 11));
+    handles.ShapFac.Value = round(n(PCount, 12));
+    handles.GeoFeat.Value = round(n(PCount, 13));
+    handles.Mat.Value = round(n(PCount, 14));
+    handles.PrimPro.Value = round(n(PCount, 15));
+    handles.Esse.Value = round(n(PCount, 16));
+    handles.VolEdit.String = cellp(PCount, 18);
+    handles.QuantEdit.String = cellp(PCount, 19);
+    handles.LimSecEdit.String = cellp(PCount, 20);
+    handles.TolEdit.String = cellp(PCount, 21);
+    handles.PlanEdit.String = cellp(PCount, 22);
+    handles.NamePartEdit.String = cellp(PCount, 2);
+    
+    p(PCount,1)=PCount;
+    
+ end 
+
+ 
+     
+ function SavePartBut_Callback (~, ~)
+     
+        %save ('bigbmatrix.mat','p');
+        %save ('cellarray.mat','cellp');
+        %part = MatToStruct(rows,p);
+        % Check for non-zero! 
+        
+        disp(n)
+        save('numMatrix.mat','n')
+        save('valMatrix.mat','p')
+        save('cellMatrix.mat','cellp')
+        [DFAOutCell, DFARat] = CostCalc(p, n, cellp);
+      
+ end
+
+function ResetPartsBut_Callback (~, ~)
+    opts.Interpreter = 'tex';
+% Include the desired Default answer
+opts.Default = 'No';
+button = questdlg('Are you sure you wish to reset parts?',...
+                      'Notification',...
+                      'Yes','No','Test Matrix',opts);
+    
+   switch button
+       case 'Yes'
+        p=zeros([rows 21]);
+        disp(p)
+        n=zeros([rows 21]);
+        disp(n)
+        cellp = {a};
+        disp(cellp) 
+        PCount = 1; 
+        
+        
+        s= num2str(PCount);
+     s1= 'Editing Part ';
+     s3= 'of';
+     s4= max(str2double(input),max(n(:,1)));
+     s5= ' ';
+     sn = sprintf ('%s %s',s1,s,s5,s3,s5,s4);
+     Partdisp.String = sn;
+     
+     if  PCount == 1;
+     set(PrePart,'Enable','off')
+     elseif PCount >2;
+     set(PrePart,'Enable','on')
+     end 
+    handles.NamePartEdit.String = '';
+    handles.PlaFee.Value = 1;
+    handles.ProDir.Value = 1;
+    handles.Inser.Value = 1;
+    handles.AceVis.Value = 1;
+    handles.Alig.Value = 1;
+    handles.InsForc.Value = 1;
+    handles.SizWei.Value = 1;
+    handles.Orient.Value = 1;
+    handles.HanDif.Value = 1;
+    handles.RotOri.Value = 1;
+    handles.ShapFac.Value = 1;
+    handles.GeoFeat.Value = 1;
+    handles.Mat.Value = 1;
+    handles.PrimPro.Value = 1;
+    handles.Esse.Value = 1;
+    handles.VolEdit.String = '';
+    handles.QuantEdit.String = '';
+    handles.LimSecEdit.String = '';
+    handles.TolEdit.String = '';
+    handles.PlanEdit.String = '';
+    handles.NamePartEdit.String = '';
+    
+    PCount = 1;
+    p(PCount,1)=PCount;
+       
+       case 'Test Matrix'
+       
+           
+      %  Numb    PlaFe  ProDi  No.In  AceVi  Alig   InsFo  SizWe  Orien  HanDi  RotOr  ShapFa GeoFe  Mat    PrimPr Esse   Vol    Quant  LimSec Tol    Planes 
+p =     [0.0001 0.0002 0.0002 0.0002 0.0002 0.0002 0.0002 0.0002 0.0002 0.0003 0.0003 0.0002 0.0004 0.0004 0.0003 0.0002 0.0001 0.6000 0.00001 0.000001 0.0003;
+         0.0002 0.0001 0.0003 0.0002 0.0002 0.0002 0.0002 0.0003 0.0003 0.0005 0.0002 0.0001 0.0004 0.0004 0.0004 0.0002 0.000005 1.2000 0.0001 0.0000002 0.0006;
+         0.0003 0.0003 0.0002 0.0002 0.0001 0.0002 0.0002 0.0002 0.0003 0.0004 0.0001 0.0003 0.0004 0.0006 0.0002 0.0001 0.0000002 4.0000 0.0002 0.000005 0.0002;
+         0.0004 0.0002 0.0001 0.0002 0.0002 0.0001 0.0001 0.0002 0.0003 0.0004 0.0001 0.0003 0.0004 0.0003 0.0003 0.0002 0.0000067 0.6000 0.00004 0.00003 0.0005;
+         0.0005 0.0001 0.0003 0.0002 0.0001 0.0002 0.0002 0.0003 0.0003 0.0004 0.0003 0.0002 0.0002 0.0005 0.0003 0.0002 0.0000349 0.6000 0.00003 0.000009 0.0002;
+         0.0006 0.0005 0.0001 0.0002 0.0001 0.0002 0.0002 0.0004 0.0003 0.0008 0.0003 0.0003 0.0003 0.0006 0.0003 0.0002 0.000072 0.6000 0.00008 0.0000005 0.0001;
+         0.0007 0.0002 0.0001 0.0001 0.0002 0.0002 0.0002 0.0003 0.0003 0.0005 0.0006 0.0002 0.0003 0.0004 0.0003 0.0002 0.000081 2.0000 0.00009 0.00008 0.0002;
+         0.0008 0.0002 0.0001 0.0002 0.0002 0.0001 0.0002 0.0002 0.0003 0.0005 0.0003 0.0001 0.0002 0.0006 0.0005 0.0001 0.0000067 0.6000 0.00002 0.0005 0.0005;
+         0.0009 0.0002 0.0001 0.0001 0.0001 0.0002 0.0002 0.0003 0.0002 0.0007 0.0003 0.0002 0.0004 0.0003 0.0004 0.0001 0.0000045 0.6000 0.00005 0.00002 0.0006;
+         0.0010 0.0001 0.0003 0.0002 0.0002 0.0001 0.0001 0.0001 0.0002 0.0008 0.0003 0.0003 0.0003 0.0005 0.0003 0.0002 0.0000024 0.6000 0.00009 0.00007 0.0002]*10000;
+       
+
+
+      %  Numb    PlaFe  ProDi  No.In  AceVi  Alig   InsFo  SizWe  Orien  HanDi  RotOr  ShapFa GeoFe  Mat    PrimPr Esse   Vol    Quant  LimSec Tol    Planes 
+n =     [0.0001 0.0002 0.0002 0.0002 0.0002 0.0002 0.0002 0.0002 0.0002 0.0003 0.0003 0.0002 0.0004 0.0004 0.0003 0.0002 0.0001 0.6000 0.00001 0.000001 0.0003;
+         0.0002 0.0001 0.0003 0.0002 0.0002 0.0002 0.0002 0.0003 0.0003 0.0005 0.0002 0.0001 0.0004 0.0004 0.0004 0.0002 0.000005 1.2000 0.0001 0.0000002 0.0006;
+         0.0003 0.0003 0.0002 0.0002 0.0001 0.0002 0.0002 0.0002 0.0003 0.0004 0.0001 0.0003 0.0004 0.0006 0.0002 0.0001 0.0000002 4.0000 0.0002 0.000005 0.0002;
+         0.0004 0.0002 0.0001 0.0002 0.0002 0.0001 0.0001 0.0002 0.0003 0.0004 0.0001 0.0003 0.0004 0.0003 0.0003 0.0002 0.0000067 0.6000 0.00004 0.00003 0.0005;
+         0.0005 0.0001 0.0003 0.0002 0.0001 0.0002 0.0002 0.0003 0.0003 0.0004 0.0003 0.0002 0.0002 0.0005 0.0003 0.0002 0.0000349 0.6000 0.00003 0.000009 0.0002;
+         0.0006 0.0005 0.0001 0.0002 0.0001 0.0002 0.0002 0.0004 0.0003 0.0008 0.0003 0.0003 0.0003 0.0006 0.0003 0.0002 0.0000072 0.6000 0.00008 0.0000005 0.0001;
+         0.0007 0.0002 0.0001 0.0001 0.0002 0.0002 0.0002 0.0003 0.0003 0.0005 0.0006 0.0002 0.0003 0.0004 0.0003 0.0002 0.000081 2.0000 0.00009 0.00008 0.0002;
+         0.0008 0.0002 0.0001 0.0002 0.0002 0.0001 0.0002 0.0002 0.0003 0.0005 0.0003 0.0001 0.0002 0.0006 0.0005 0.0001 0.0000067 0.6000 0.00002 0.0005 0.0005;
+         0.0009 0.0002 0.0001 0.0001 0.0001 0.0002 0.0002 0.0003 0.0002 0.0007 0.0003 0.0002 0.0004 0.0003 0.0004 0.0001 0.0000045 0.6000 0.00005 0.00002 0.0006;
+         0.0010 0.0001 0.0003 0.0002 0.0002 0.0001 0.0001 0.0001 0.0002 0.0008 0.0003 0.0003 0.0003 0.0005 0.0003 0.0002 0.0000024 0.6000 0.00009 0.00007 0.0002] *10000;
+        
+   
+       
+   
+
+ cellp = {[1], 'Back_Plate','Requires holding','Straight line not?','Multiple insertions','Restricted','Not easy','Resistance','Convenient - hands',... 
+         'End to end - easy','Sticky','Rotational - hard','Prismatic','B','Stainless Steel','Die Cast','non-essential','0.5','6000','0.1','0.004','3';...
+         
+          [2], 'End_Cap', 'Self holding orientation', 'Not straight line', 'Multiple insertions','Restricted','Not easy','Resistance','Large/heavy - handS',...
+          'End to end - hard','Sharp/Abraisive','Rotational - easy','Cylindrical','A','Stainless Steel','Forge','non-essential','0.004','12000','1','0.0002','6';...
+         
+          [3],'Roller_Bearing','Self-securing','Straight line not?','Multiple insertions', 'Direct','Not easy','Resistance','Convenient - hands',...
+          'End to end - hard','Severely Nest','Rotational Symetry','Thin-walled','C','Aluminium Alloys','Snd Cast','Essential','0.005','40000','2','0.005','2';...
+         
+          [4],'Casing_1','Requires holding','Straight line fro?','Multiple insertions','Restricted','Easy to align','No resistance','Convenient - hands',...
+          'End to end - hard','Severely Nest','Rotational Symetry','Thin-walled','C','Alloy Steel','Die Cast','non-essential','0.02','6000','0.01','0.0004','5';...
+         
+          [5],'Casing_2','Self holding orie?','Not straight line','Multiple insertions','Direct','Not easy','Resistance','Large/heavy - handS',...
+          'End to end - hard','Severely Nest','Rotational - hard','Prismatic','B','Copper Alloys','Die Cast','non-essential','0.006','6000','0.1','0.0005'    '2';...
+         
+          [6],'Mounting_Plate','Riveting','Straight line fro?','Multiple insertions','Direct','Not easy','Resistance','Heavy - hoist'  ,...   
+          'End to end - hard','No difficulties','Rotational - hard','Thin-walled','C','Aluminium Alloys','Die Cast','non-essential','0.006','6000','0.02','0.0002'    '1';...
+         
+          [7],'Ferule','Requires holding','Straight line fro?','Single','Restricted','Not easy','Resistance','Large/heavy - handS',...
+          'End to end - hard','Sharp/Abraisive','Rotational - easy','Prismatic','B','Stainless Steel','Die Cast','non-essential','0.0009','20000','0.01', '0.0002'    '2';...
+        
+          [8],'Shaft','Requires holding','Straight line fro?','Multiple insertions','Restricted','Easy to align','Resistance','Convenient - hands' ,...
+          'End to end - hard','Sharp/Abraisive','Rotational - hard','Cylindrical','A','Aluminium Alloys','Press','Essential','0.003','6000','0.02','5' ,'5';...
+         
+          [9],'Pulley','Requires holding','Straight line fro?','Single','Direct','Not easy','Resistance','Large/heavy - handS',...
+          'End to end - easy','Gripping problem','Rotational - hard','Prismatic','B','Alloy Steel','Forge','Essential','6000','6000','0.3','0.0004' ,'6';...
+         
+          [10],'Pulley_2','Screwing','Not straight line','Multiple insertions','Restricted','Easy to align','No resistance','Very small - tools',...
+          'End to end - easy','No difficulties','Rotational - hard','Thin-walled','C','Copper Alloys','Die Cast','non-essential','0.0005','6000','0.2','0.0005','2'};...
+         
+      
+      
+          NumPartEdit.String = max(n(:,1));
+          
+          s= num2str(PCount);
+          s1= 'Editing Part ';
+          s3= 'of';
+          s4= NumPartEdit.String;
+          s5= ' ';
+          sn = sprintf ('%s %s',s1,s,s5,s3,s5,s4);
+          handles.Partdisp.String = sn;
+      
+          handles.NamePartEdit.String = cellp(PCount, 2);
+          handles.PlaFee.Value = round(n(PCount, 2));
+          handles.ProDir.Value = round(n(PCount, 3));
+          handles.Inser.Value = round(n(PCount, 4));
+          handles.AceVis.Value = round(n(PCount, 5));
+          handles.Alig.Value = round(n(PCount, 6));
+          handles.InsForc.Value = round(n(PCount, 7));
+          handles.SizWei.Value = round(n(PCount, 8));
+          handles.Orient.Value = round(n(PCount, 9));
+          handles.HanDif.Value = round(n(PCount, 10));
+          handles.RotOri.Value = round(n(PCount, 11));
+          handles.ShapFac.Value = round(n(PCount, 12));
+          handles.GeoFeat.Value = round(n(PCount, 13));
+          handles.Mat.Value = round(n(PCount, 14));
+          handles.PrimPro.Value = round(n(PCount, 15));
+          handles.Esse.Value = round(n(PCount, 16));
+          handles.VolEdit.String = cellp(PCount, 18);
+          handles.QuantEdit.String = cellp(PCount, 19);
+          handles.LimSecEdit.String = cellp(PCount, 20);
+          handles.TolEdit.String = cellp(PCount, 21);
+          handles.PlanEdit.String = cellp(PCount, 22);
+          handles.NamePartEdit.String = cellp(PCount, 2);
+          
+          
+          
+          
+          
+          
+          
+          
+   case 'No' 
+    
+   end
+   
+   
+end
+
+function UpdateData_Callback(~, ~)
+clc
+disp(DFAOutCell)
+disp(cellp)
+cla
+part = cellp(:,2) 
+
+% for i =1:max(n(:,1))
+% set(handles.(part{i}),'position',[.99 .99 .02 .04])
+% end 
+
+newdat = uitable('Parent',TabHandles{2,1},'ColumnName',{'Part Number','Part Name', 'Placing and Feeding','Process and Direction',...
+                                    'No of Insertions ','Access Vision','Alignment',...
+                                    'Insertion Force','Size and Weight','Orientation','Handling Difficulties',...
+                                    'Rotational Orientation','Shape Factor','Features',...
+                                    'Material','Primary manufacture','Essential','Volume','Quantity',...
+                                    'Limmiting Section','Tolerance','Planes'},...
+                                    'Data', cellp,...
+                                    'units','normalized',...
+                                    'Position',[.05 .6 .9 .3]);                        
+
+DFAdat = uitable('Parent', TabHandles{2,1}, 'ColumnName',{'Part Number','Part Name', 'Fitting Index','Feeding Index',...
+                                     'Cost Index','Relative Cost (Rc)','Complexity Factor (Cc)',...
+                                     'Material Factor (Cmp)','Min Sec (Cs)','Tol Fact (Ct)',...
+                                     'Processing Cost (Pc)','Material Cost','Vol (mm3)',' Waste Coeff (Wc)'},...
+                                     'Data', DFAOutCell ,...
+                                     'units','normalized',...
+                                     'Position',[.05 .26 .9 .3]);
+                                 
+ratioTable = uitable('Parent', TabHandles{2,1}, 'ColumnName',{'Fitting Index', 'Feeding Ratio', 'Assembly Cost Index'},...
+                                         'Data', DFARat ,...
+                                         'units','normalized',...
+                                         'Position',[.05 .11 .3 .1]);
+A1 = imread('Images/A1.PNG');
+A2 = imread('Images/A2.PNG');
+A3 = imread('Images/A3.PNG');
+A4 = imread('Images/A4.PNG');
+A5 = imread('Images/A5.PNG');
+B1 = imread('Images/B1.PNG');
+B2 = imread('Images/B2.PNG');
+B3 = imread('Images/B3.PNG');
+B4 = imread('Images/B4.PNG');
+B5 = imread('Images/B5.PNG');
+C1 = imread('Images/C1.PNG');
+C2 = imread('Images/C2.PNG');
+C3 = imread('Images/C3.PNG');
+C4 = imread('Images/C4.PNG');
+C5 = imread('Images/C5.PNG');
+Screw = imread('Images/Screw.PNG');
+Weld = imread('Images/Weld.PNG');
+Press = imread('Images/Press Fit.PNG');
+Adhes = imread('Images/Adhesive.PNG');
+Jig = imread('Images/Jig.PNG');
+Rivet = imread('Images/Rivet2.PNG');
+Bolt = imread('Images/NutBolt.PNG');
+
+part = cellp(:,2);
+
+partVert = 0.82;
+for i =1:max(n(:,1))
+    
+    if mod(i,2) == 0
+        b = .1;
+       
+        
+    else
+        b = .2;
+    end 
+    partVert = partVert - 0.04
+    [b partVert .02 .04]
+    
+    disp('current Part')
+    disp(part{i})
+    
+    handles.(part{i}) = axes('units','normalized',...
+                             'parent',TabHandles{3,1},...
+                             'position', [b partVert .02 .04] );
+                         
+            if n(i,12) ==1 && n(i,13) ==1
+                  image(A1, 'parent', handles.(part{i}),...
+                             'ButtonDownFcn', @dragObject);
+        elseif n(i,12) ==1 && n(i,13) ==2
+                  image(A2, 'parent', handles.(part{i}),...
+                             'ButtonDownFcn', @dragObject); 
+        elseif n(i,12) ==1 && n(i,13) ==3
+                  image(A3, 'parent', handles.(part{i}) ,...
+                              'ButtonDownFcn', @dragObject);
+        elseif n(i,12) ==1 && n(i,13) ==4
+                  image(A4, 'parent', handles.(part{i}),...
+                             'ButtonDownFcn', @dragObject);
+                         
+        elseif n(i,12) ==1 && n(i,13) ==5
+                  image(A5, 'parent', handles.(part{i}),...
+                             'ButtonDownFcn', @dragObject); 
+                         
+        elseif n(i,12) ==2 && n(i,13) ==1
+                  image(B1, 'parent', handles.(part{i}),...
+                             'ButtonDownFcn', @dragObject);
+                        
+                         
+        elseif n(i,12) ==2 && n(i,13) ==2
+                  image(B2, 'parent', handles.(part{i}),...
+                             'ButtonDownFcn', @dragObject);
+                         
+        elseif n(i,12) ==2 && n(i,13) ==3
+                  image(B3, 'parent', handles.(part{i}),...
+                             'ButtonDownFcn', @dragObject);  
+                         
+        elseif n(i,12) ==2 && n(i,13) ==4
+                  image(B4, 'parent', handles.(part{i}),...
+                             'ButtonDownFcn', @dragObject);                    
+                         
+        elseif n(i,12) ==2 && n(i,13) ==5
+                  image(B5, 'parent', handles.(part{i}),...
+                             'ButtonDownFcn', @dragObject);                  
+                         
+        elseif n(i,12) ==3 && n(i,13) ==1
+                  image(C1, 'parent', handles.(part{i}),...
+                             'ButtonDownFcn', @dragObject);                
+                         
+        elseif n(i,12) ==3 && n(i,13) ==2
+                  image(C2, 'parent', handles.(part{i}),...
+                             'ButtonDownFcn', @dragObject);   
+                         
+        elseif n(i,12) ==3 && n(i,13) ==3
+                  image(C3, 'parent', handles.(part{i}),...
+                             'ButtonDownFcn', @dragObject);
+                         
+                         
+        elseif n(i,12) ==3 && n(i,13) ==4
+                  image(C4, 'parent', handles.(part{i}),...
+                             'ButtonDownFcn', @dragObject);
+                                    
+                         
+        elseif n(i,12) ==3 && n(i,13) ==5
+                  image(C5, 'parent', handles.(part{i}),...
+                             'ButtonDownFcn', @dragObject);
+                         
+                         
+                                        
+       
+            end 
+           
+set(handles.(part{i}),'XColor',white,'YColor',white,'TickDir','in');
+    disp(i)
+end
+end 
+
+
+%%   Callback for Tab Selection
+function TabSellectCallback(~,~,SelectedTab)
+%   All tab selection pushbuttons are greyed out and uipanels are set to
+%   visible off, then the selected panel is made visible and it's selection
+%   pushbutton is highlighted.
+
+    %   Set up some varables
+        TabHandles = guidata(gcf);
+        NumberOfTabs = size(TabHandles,1)-2;
+        White = TabHandles{NumberOfTabs+2,2};            % White      
+        BGColor = TabHandles{NumberOfTabs+2,3};          % Light Grey
+        
+    %   Turn all tabs off
+        for TabCount = 1:NumberOfTabs
+            set(TabHandles{TabCount,1}, 'Visible', 'off');
+            set(TabHandles{TabCount,2}, 'BackgroundColor', BGColor);
+            
+            
+            if strcmp(TabHandles{SelectedTab, 3},('Gras Workspace')) == 1 ;
+                set(fig_handle, 'units','normalized',...
+                                'WindowButtonUpFcn',@dropObject,...
+                                'WindowButtonMotionFcn',@moveObject)
+                
+            else
+                set(fig_handle, 'units','normalized',...
+                                'WindowButtonMotionFcn',[],...
+                                'WindowButtonUpFcn',[])
+            end
+        
+    %   Enable the selected tab
+        set(TabHandles{SelectedTab,1}, 'Visible', 'on');        
+        set(TabHandles{SelectedTab,2}, 'BackgroundColor', White);
+        
+    
+        
+
+        end
+
+
+end
+
+%%  Create DFA Out Components 
+
+newdat = uitable('Parent',TabHandles{2,1},'ColumnName',{'Part Number','Part Name', 'Placing and Feeding','Process and Direction',...
+                                    'No of Insertions ','Access Vision','Alignment',...
+                                    'Insertion Force','Size and Weight','Orientation','Handling Difficulties',...
+                                    'Rotational Orientation','Shape Factor','Features',...
+                                    'Material','Primary manufacture','Essential','Volume','Quantity',...
+                                    'Limmiting Section','Tolerance','Planes'},...
+                                    'Data', cellp,...
+                                    'units','normalized',...
+                                    'Position',[.05 .6 .9 .3]);                        
+
+DFAdat = uitable('Parent', TabHandles{2,1}, 'ColumnName',{'Part Number','Part Name', 'Fitting Index','Feeding Index',...
+                                     'Cost Index','Relative Cost (Rc)','Complexity Factor (Cc)',...
+                                     'Material Factor (Cmp)','Min Sec (Cs)','Tol Fact (Ct)',...
+                                     'Processing Cost (Pc)','Material Cost','Vol (mm3)',' Waste Coeff (Wc)'},...
+                                     'Data', DFAOutCell ,...
+                                     'units','normalized',...
+                                     'Position',[.05 .26 .9 .3]);
+                                 
+ratioTable = uitable('Parent', TabHandles{2,1}, 'ColumnName',{'Fitting Index', 'Feeding Ratio', 'Assembly Cost Index'},...
+                                         'Data', DFARat ,...
+                                         'units','normalized',...
+                                         'Position',[.05 .11 .3 .1]);
+
+%% Create Workspace components
+
+dim = get(gcf, 'Position'); %// gives x left, y bottom, width, height
+width = dim(3);
+height = dim(4);
+disp([width height]);
+fsize(1) = width;
+fsize(2) = height;
+
+
+
+
+
+handles.Xtext = uicontrol('Parent', TabHandles{3,1},...
+                'Style','text',...
+                'String','Select a data set.',...
+                'Position',[1 10 130 10]);
+            
+handles.Ytext = uicontrol('Parent', TabHandles{3,1},...
+                'Style','text',...
+                'String','Select a data set.',...
+                'Position',[140 10 130 10]);            
+
+% disp(handles.ax)
+% disp(handles)
+
+% Create Workspace static axis
+handles.dragSpace = axes('Parent', TabHandles{3,1},...
+                'Position',[.05 .05 .9 .9]);
+
+ 
+
+% workspacebounds
+
+Wbounds= get(handles.dragSpace,'position');
+wx = Wbounds(1)*width; wy = Wbounds(2)*height;
+ww = Wbounds(3)*width; wh = Wbounds(4)*height;
+ 
+ 
+%finding colour of figure (grey) to obscure line markers. 
+color = get(gcf,'Color');
+set(handles.dragSpace,'XColor',color,'YColor',color,'TickDir','in');
+
+% pure white to obsure line markers on graphics icons
+white = [1 1 1 1];
+
+
+set(TabHandles{3,1}, 'backgroundcolor',[0.9400    0.9400    0.9400])
+
+        partBox1 = annotation(TabHandles{3,1},'line','units','normalized','position',[.06 .4 .15 .0]);
+        partBox2 = annotation(TabHandles{3,1},'line','units','normalized','position',[.21 .4 .0 .52]);
+        partBox3 = annotation(TabHandles{3,1},'line','units','normalized','position',[.21 .92 -.15 .0]);
+        partBox4 = annotation(TabHandles{3,1},'line','units','normalized','position',[.06 .92 .0 -.52]);
+        
+        fastenBox1 = annotation(TabHandles{3,1},'line','units','normalized','position',[.06 .07 .15 .0]);
+        fastenBox2 = annotation(TabHandles{3,1},'line','units','normalized','position',[.21 .07 .0 .3]);
+        fastenBox3 = annotation(TabHandles{3,1},'line','units','normalized','position',[.21 .37 -.15 .0]);
+        fastenBox4 = annotation(TabHandles{3,1},'line','units','normalized','position',[.06 .37 .0 -.3]);
+
+        Partbox = annotation(TabHandles{3,1},'textbox',...
+                    'FontName', 'arial',...
+                    'FontWeight', 'bold',...
+                    'FontSize', 12,...
+                    'units','normalized',...
+                    'position',[.065 .88 .14 .032],'String','Parts');
+                
+        fastenBox = annotation(TabHandles{3,1},'textbox',...
+                    'FontName', 'arial',...
+                    'FontWeight', 'bold',...
+                    'FontSize', 12,...
+                    'units','normalized',...
+                    'position',[.065 .32 .14 .032],'String','Fasteners');
+                
+  % loading icons               
+                 
+           
+%% Drag Drop Functions 
+
+
+dragging = [];
+orPos = [];
+downPos = [];
+lineDraw = 0;
+savePos = []; 
+
+newPos = get(gcf,'CurrentPoint');
+
+        x = newPos(1)*width;
+        y = newPos(2)*height;        % assign locations to x and y
+        
+        
+
+function dragObject(hObject,eventdata) %button down
+      disp('dragtime')
+      %set(myImage,'Visible','off')
+     
+      switchfigptr('closedhand',gcf) 
+       dragging = hObject;
+       orPos = get(gcf,'CurrentPoint');
+       downPos = orPos;
+       
+  end
+
+    function dropObject(hObject,eventdata) %button  up
+
+         if ~isempty(dragging)
+            
+            
+            switchfigptr('hand',gcf) 
+            if x >= wx + 15 && x<=wx + ww -10 && y >=wy + 13 && y<=wy + wh -10
+             disp('droptime')
+            newPos = get(gcf,'CurrentPoint');
+            posDiff = newPos - orPos;
+            set(gca,'Position',get(gca,'Position') + [posDiff(1:2) 0 0]);
+            dragging = [];
+            disp(newPos)
+            else 
+                
+            end 
+            if orPos == downPos
+                disp('linedraw')
+               
+                lineDraw = lineDraw +1;
+                if mod(lineDraw,2)==0
+                    disp('linetime')
+                    xl = [savePos(1), newPos(1)];
+                    yl = [savePos(2), newPos(2)];
+                    handles.l1a = annotation('line',[savePos(1) savePos(1)],[savePos(2),newPos(2)]);
+                    handles.l1b =annotation('line',[savePos(1) newPos(1)], [newPos(2), newPos(2)]);
+                else 
+                    savePos = get(gcf,'CurrentPoint')
+                end
+            else
+                
+            end 
+        end
+    end
+
+    function moveObject(hObject,eventdata)
+      
+       newPos = get(gcf,'CurrentPoint');
+       posAbsX = num2str(newPos(1)*width);
+       posAbsY = num2str(newPos(2)*height);
+       set(handles.Xtext, 'String', posAbsX);
+       set(handles.Ytext, 'String', posAbsY);
+       
+       
+        x = newPos(1)*width;
+        y = newPos(2)*height;        % assign locations to x and y
+
+        bounds = get(gca, 'Position'); % get position information of the uicontrol
+
+        lx = bounds(1)*width; ly = bounds(2)*height;
+        lw = bounds(3)*width; lh = bounds(4)*height;
+        
+% test to see if mouse is within the uicontrol and make a hand sign
+if x >= wx + 15 && x<=wx + ww -10 && y >=wy + 13 && y<=wy + wh -10
+    
+   if x >= lx && x <= (lx + lw) && y >= ly && y <= (ly + lh)
+    switchfigptr('hand',gcf); 
+    set(handles.ax3, 'ButtonDownFcn', @dragObject);
+    else
+    switchfigptr('arrow',gcf);
+   end
+        if ~isempty(dragging)
+            disp('hello there')
+            a = get(gca,'position');
+            newPos = get(gcf,'CurrentPoint');
+            
+            posDiff = newPos - orPos;
+            orPos = newPos;
+            set(gca,'Position',get(gca,'Position') + [posDiff(1:2) 0 0]);
+            bounds = get(gca,'Position');
+        end
+end
+    end 
+
+end 
+
+ 
+
+
+
+  
+   
+       
